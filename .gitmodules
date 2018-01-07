@@ -1,0 +1,4 @@
+[submodule "security-data-api"]
+	path = security-data-api
+	url = git@github.com:fedoraredteam/security-data-api.git
+	branch = master
