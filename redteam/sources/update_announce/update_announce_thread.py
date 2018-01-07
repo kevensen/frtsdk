@@ -1,4 +1,5 @@
 import re
+import sys
 from datetime import datetime
 from mongoengine import Document
 from mongoengine import URLField
@@ -39,14 +40,18 @@ class UpdateAnnounceThread(Document, Resource):
         for message in self.data:
             mid = message['message-id']
             if not self.has_update_announce_message(mid) and UpdateAnnounceThread.message_is_security_relevant(message):
-                message_args = dict(message_id=mid,
-                                    text=message.as_string(),
-                                    message_date=message['date'])
-                uam = UpdateAnnounceMessage(**message_args)
-                uam.save()
+                try:
+                    message_args = dict(message_id=mid,
+                                        text=message.as_string(),
+                                        message_date=message['date'])
+                    uam = UpdateAnnounceMessage(**message_args)
+                    uam.save()
+                    self.messages.append(uam)
+                # TODO: There are advisories (e.g. FEDORA-EXTRAS-2006-003 with product Fedora Extras [5 devel])
+                # that are not being properly processed.  Will have to revisit this.
+                except AttributeError:
+                    pass
                 # pylint: disable=E1101
-                self.messages.append(uam)
-
                 built_messages.append(mid)
         return built_messages
 

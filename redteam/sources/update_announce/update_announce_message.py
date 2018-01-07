@@ -3,16 +3,19 @@ from datetime import datetime
 from mongoengine import Document
 from mongoengine import StringField
 from mongoengine import DateTimeField
+from mongoengine import ListField
 
 CVE_REGEX = re.compile(r'CVE-\d{4}-\d{1,}', re.MULTILINE)
-ADVISORY_REGEX = re.compile(r'^(\s*FEDORA\-.*|\s*RHSA-.*|\s*CEBA-.*)$', re.MULTILINE)
+ADVISORY_REGEX = re.compile(r"""(^\s*FEDORA\-.*|^\s*RHSA-.*|^\s*CEBA-.*)
+(\d\d\d\d-\d\d-\d\d\s*\d\d:\d\d|\d\d\d\d-\d\d-\d\d)""", re.MULTILINE)
 SUMMARY_REGEX = re.compile(r'^Summary\W*(.*)$', re.MULTILINE)
 PRODUCT_REGEX = re.compile(r"\s*Product\s*:\s*(.*)", re.MULTILINE)
 PACAKGE_NAME_REGEX = re.compile(r"^\s*Name\s*:\s*(.*)", re.MULTILINE)
 PACAKGE_VERSION_REGEX = re.compile(r"^\s*Version\s*:\s*(.*)", re.MULTILINE)
 PACAKGE_RELEASE_REGEX = re.compile(r"\s*Release\s*:\s*(.*)", re.MULTILINE)
 ARCH_REGEX = re.compile(r'(i386|i486|i586|i686|athlon|geode|pentium3|pentium4|x86_64|amd64|ia64|alpha|alphaev5|alphaev56|alphapca56|alphaev6|alphaev67|sparcsparcv8|sparcv9|sparc64|sparc64v|sun4|sun4csun4d|sun4m|sun4u|armv3l|armv4b|armv4larmv5tel|armv5tejl|armv6l|armv7l|mips|mipselppc|ppciseries|ppcpseries|ppc64|ppc8260|ppc8560|ppc32dy4|m68k|m68kmint|atarist|atariste|ataritt|falcon|atariclone|milan|hades|Sgi|rs6000|i370|s390x|s390|noarch)')
-
+BUGZILLA_REGEX = re.compile(r"""(\s*\[ \d \] Bug \#(\d+) - (.+)
+\s*(https:\/\/bugzilla\.redhat\.com.*))+?""", re.MULTILINE)
 
 class UpdateAnnounceMessage(Document):
     message_id = StringField(primary_key=True)
@@ -20,6 +23,7 @@ class UpdateAnnounceMessage(Document):
     message_date = DateTimeField(required=True)
     summary = StringField()
     advisory_id = StringField(required=True)
+    cves = ListField()
     
     meta = {'ordering': ['-message_date']}
 
@@ -30,33 +34,35 @@ class UpdateAnnounceMessage(Document):
                 self.message_id = kwargs['message_id']
             except KeyError:
                 self.message_id = kwargs['messageId']
+        try:
+            self.text = kwargs['text']
+            if isinstance(kwargs['message_date'], datetime):
+                self.message_date = kwargs['message_date']
+            else:
+                simple_date = kwargs['message_date']
+                if '+' in simple_date:
+                    simple_date = simple_date.split('+')[0].strip()
+                elif '-' in simple_date:
+                    simple_date = simple_date.split('-')[0].strip()
 
-        self.text = kwargs['text']
-        if isinstance(kwargs['message_date'], datetime):
-            self.message_date = kwargs['message_date']
-        else:
-            simple_date = kwargs['message_date']
-            if '+' in simple_date:
-                simple_date = simple_date.split('+')[0].strip()
-            elif '-' in simple_date:
-                simple_date = simple_date.split('-')[0].strip()
-
-            self.message_date = datetime.strptime(simple_date, '%a, %d %b %Y %H:%M:%S')
-
-
-        self.advisory_id = ADVISORY_REGEX.search(self.text).group(1)
-        self.summary = SUMMARY_REGEX.search(self.text).group(1)
+                self.message_date = datetime.strptime(simple_date, '%a, %d %b %Y %H:%M:%S')
 
 
-    @property
-    def cves(self):
-        return list(set(CVE_REGEX.findall(self.text)))
+            self.advisory_id = ADVISORY_REGEX.search(self.text).group(1)
+            self.summary = SUMMARY_REGEX.search(self.text).group(1)
+            self.cves = list(set(CVE_REGEX.findall(self.text)))
+        except KeyError:
+            pass
 
     @property
     def rpm(self):
         return '-'.join([PACAKGE_NAME_REGEX.search(self.text).group(1),
                          PACAKGE_VERSION_REGEX.search(self.text).group(1),
                          PACAKGE_RELEASE_REGEX.search(self.text).group(1)])
+
+    @property
+    def rpname(self):
+        return PACAKGE_NAME_REGEX.search(self.text).group(1)
 
     @property
     def product(self):
@@ -106,3 +112,9 @@ class UpdateAnnounceMessage(Document):
         return dict(full_product_name=self.full_product_name,
                     type="Product Name",
                     name=self.full_product_name)
+
+    @property
+    def cpe(self):
+        if 'Fedora' in self.product:
+            cpestring = "cpe:/o:fedoraproject:fedora:" + self.product_version
+        return cpestring

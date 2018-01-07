@@ -6,6 +6,7 @@ from redteam.sources.update_announce import UpdateAnnounceMessage
 from redteam.sources.nvd import NvdManager
 from redteam.artifacts import ArtifactManager
 from redteam.artifacts import CVRF
+from redteam.artifacts import CVE
 
 class RedTeam(object):
     def __init__(self, loglevel, mongo_host, mongo_port, mongodb, mongo_username=None, mongo_password=None, basehost='http://localhost', no_tls_verify=False):
@@ -86,13 +87,25 @@ class RedTeam(object):
                             'resource_url': self.basehost + '/cvrf/' + message.advisory_id + '.' + output_format
                             } for message in messages], indent=4, sort_keys=False)
     
-    def query_cvrf(self, cvrfid, output_format='json'):
+    def query_cvrf(self, cvrfid, output_format='json', data_dir=None):
         # pylint: disable=W0612
         artifact_manager = ArtifactManager(**self.mongo_connect_args)
         # pylint: disable=E1101
-        cvrf = CVRF.objects.filter(advisory_id=cvrfid).first()
+        cvrf = CVRF(cvrfid, data_dir)
        
-        return json.dumps(cvrf.todict, indent=4, sort_keys=False)
+        return json.dumps(dict(cvrf), indent=4, sort_keys=False)
 
+
+    def query_cve(self, cveid, output_format='json'):
+        artifact_manager = ArtifactManager(**self.mongo_connect_args)
+        cve = CVE(cveid)
+        return json.dumps(dict(cve), indent=4, sort_keys=False)
+
+    def dump(self, datadir, output_format='all'):
+        artifact_manager = ArtifactManager(**self.mongo_connect_args)
+        advisories = [uam.advisory_id for uam in UpdateAnnounceMessage.objects.filter()]
+        for advisory_id in advisories:
+            cvrf = CVRF(advisory_id, data_dir=datadir, logger='console')
+            cvrf.save_json()
 
 

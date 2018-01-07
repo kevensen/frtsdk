@@ -6,13 +6,16 @@ from redteam.core import FILE_CONNECTOR
 
 class Resource(object):
 
-    def __init__(self, location, tlsverify=True, resource_connector=None, logger=None):
+    def __init__(self, location, tlsverify=True, resource_connector=None, logger=None, transform_cls=None):
 
         connector_args = {'tlsverify': tlsverify}
         self.log = None
         if logger:
             connector_args = {'logger': logger}
             self.log = logging.getLogger(logger)
+
+        if transform_cls:
+            connector_args = {'transform_cls': transform_cls}
 
         if not resource_connector:
             self.connector = ResourceConnectorFactory.create_connector(location, **connector_args)

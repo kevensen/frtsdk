@@ -1,6 +1,7 @@
 import collections
 import os
 import json
+from redteam.core import Resource
 
 class TransformableDict(collections.MutableMapping):
     def __init__(self, *args, **kwargs):
@@ -29,14 +30,22 @@ class TransformableDict(collections.MutableMapping):
         return json.dumps(dict(self), indent=4, sort_keys=True)
 
 
-class SaveableLoadableDict(TransformableDict):
+class SaveableLoadableDict(TransformableDict, Resource):
 
     def __init__(self, *args, **kwargs):
+
+        TransformableDict.__init__(self, *args, **kwargs)
         try:
-            self.type = kwargs.pop('type')
+            location = kwargs.pop('location')
+            try:
+                logger = kwargs.pop('logger')
+            except KeyError:
+                logger = None
+            Resource.__init__(self, location, logger=logger, transform_cls=JSONTransformableDictEncoder)
+
         except KeyError:
-            self.type = ''
-        super(SaveableLoadableDict, self).__init__(*args, **kwargs)
+            pass
+        
         try:
             self.name = kwargs['name']
         except KeyError:
@@ -48,19 +57,11 @@ class SaveableLoadableDict(TransformableDict):
         if self.__keytransform__(key) == 'name':
             self.name = value
 
-    def save_json(self, location, **kwargs):
-        file_path = os.path.join(location, self.type, self.name + ".json")
-        with open(file_path, 'w') as json_file_obj:
-            if 'cls' in kwargs:
-                json.dump(dict(self), json_file_obj, indent=4, sort_keys=True, cls=kwargs['cls'])
-            else:
-                json.dump(dict(self), json_file_obj, indent=4, sort_keys=True)
-
-    @classmethod
-    def load(cls, location):
-        with open(location, 'r') as json_file_obj:
-            data = json.load(json_file_obj)
-        return cls(data)
+    def save_json(self):
+        _, file_extension = os.path.splitext(self.location)
+        if file_extension != '.json':
+            self.location.replace(file_extension, '.json')
+        self.write(self.json())
 
 class JSONTransformableDictEncoder(json.JSONEncoder):
     def default(self, obj): # pylint: disable=E0202,W0221

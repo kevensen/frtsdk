@@ -5,9 +5,9 @@ from redteam.core import MBOX_CONNECTOR
 from redteam.core import MBoxResouceConnector
 class ResourceWithCache(Resource):
 
-    def __init__(self, location, cache_location=None, tlsverify=True, resource_connector=None, logger=None):
+    def __init__(self, location, cache_location=None, tlsverify=True, resource_connector=None, logger=None, transform_cls=None):
 
-        super(ResourceWithCache, self).__init__(location, tlsverify, resource_connector, logger)
+        super(ResourceWithCache, self).__init__(location, tlsverify, resource_connector, logger, transform_cls)
 
         if cache_location:
             if self.connector_type == MBOX_CONNECTOR:

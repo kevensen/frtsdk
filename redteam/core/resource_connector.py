@@ -103,8 +103,14 @@ class FileResourceConnector(object):
         self.location = location
         self.type = FILE_CONNECTOR
         self.log = None
+        self.transform_cls = None
         try:
             self.log = logging.getLogger(kwargs['logger'])
+        except KeyError:
+            pass
+            
+        try:
+            self.transform_cls = kwargs.pop('transform_cls')
         except KeyError:
             pass
 
@@ -127,7 +133,10 @@ class FileResourceConnector(object):
                 gzip_file_obj.write(json.dumps(file_content))
         elif file_extension == '.json':
             with open(self.location, "w") as json_file_obj:
-                json.dump(file_content, json_file_obj, indent=4, sort_keys=True)
+                if self.transform_cls:
+                    json.dump(file_content, json_file_obj, indent=4, sort_keys=True, cls=self.transform_cls)
+                else:
+                    json.dump(file_content, json_file_obj, indent=4, sort_keys=True)
         else:
             with open(self.location, "w") as file_obj:
                 file_obj.write(file_content)
