@@ -1,12 +1,11 @@
 import re
-import sys
 from datetime import datetime
 from mongoengine import Document
 from mongoengine import URLField
 from mongoengine import DateTimeField
 from mongoengine import ReferenceField
 from mongoengine import ListField
-from redteam.core import Resource
+from redteamcore import Resource
 from redteam.sources.update_announce import UpdateAnnounceMessage
 
 CVE_REGEX = re.compile(r'CVE-\d{4}-\d{1,}', re.MULTILINE)

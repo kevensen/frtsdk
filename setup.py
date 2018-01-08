@@ -26,10 +26,10 @@ class CleanPycCommand(Command):
 
 
 setup(name='redteam',
-      packages=['redteam'],
-      install_requires=['argparse', 'requests', 'mongoengine', 'cpe'],
+      packages=['redteam', 'redteam.core', 'redteam.artifacts', 'redteam.sources.nvd', 'redteam.sources.update_announce'],
+      install_requires=['argparse', 'requests', 'mongoengine', 'cpe', 'redteamcore'],
       version='0.0.1',
-      description='Red team SDK for Python.',
+      description='Red Team SDK for Python.',
       author='Kenneth Evensen',
       author_email='kevensen@redhat.com',
       license='GPLv3',

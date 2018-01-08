@@ -78,7 +78,7 @@ class CveItem(Document):
     @property
     def cwe(self):
         try:
-            return self.cve['problemtype']['problemtype_data']['description']['value']
+            return self.cve['problemtype']['problemtype_data'][0]['description'][0]['value']
         except KeyError:
             pass
         return ""

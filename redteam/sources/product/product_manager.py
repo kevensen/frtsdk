@@ -1,5 +1,6 @@
 import logging
-from redteam.core import Resource
+from redteamcore import Resource
+from redteam.core import MongoEngineResourceConnector
 
 #TODO: Yeah, I know this is HTTP vs. HTTPS.  Will implement checksum at some point.
 RELEASES = dict(Fedora21Server=dict(location='http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/21/Server/x86_64/os/repodata/5b8af56df46c99e22dc9e9efcf8fbf2611bb066cb7d5496f124bead00ce01b5b-primary.xml.gz',
@@ -30,7 +31,11 @@ RELEASES = dict(Fedora21Server=dict(location='http://archives.fedoraproject.org/
 class ProductManager(Resource):
     def __init__(self, **kwargs):
         if kwargs and kwargs['location']:
-            super(ProductManager, self).__init__(kwargs['location'])
+            logger = None
+            if 'logger' in kwargs.keys():
+                logger = kwargs['logger']
+            resource_connector = MongoEngineResourceConnector(kwargs['location'], logger=logger)
+            super(ProductManager, self).__init__(kwargs['location'], resource_connector=resource_connector)
             kwargs.pop('location')
             self.connector.open()
         self.log = None

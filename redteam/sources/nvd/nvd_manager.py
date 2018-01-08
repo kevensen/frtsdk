@@ -3,10 +3,10 @@
 vulnerability_data_reader
 """
 import logging
-from redteam.core import Resource
+from redteamcore import Resource
 from redteam.sources.nvd import CveItem
 from redteam.sources.nvd import NvdSource
-
+from redteam.core import MongoEngineResourceConnector
 
 DATA_STREAMS = {2006: dict(url='https://static.nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-2006.json.gz', meta='https://static.nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-2006.meta'),
                 2007: dict(url='https://static.nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-2007.json.gz', meta='https://static.nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-2007.meta'),
@@ -29,7 +29,12 @@ YEARS = [2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017,
 class NvdManager(Resource):
     def __init__(self, **kwargs):
         if kwargs and kwargs['location']:
-            super(NvdManager, self).__init__(kwargs['location'])
+            logger = None
+            if 'logger' in kwargs.keys():
+                logger = kwargs['logger']
+            resource_connector = MongoEngineResourceConnector(kwargs['location'], logger=logger)
+            
+            super(NvdManager, self).__init__(kwargs['location'], resource_connector=resource_connector)
             kwargs.pop('location')
             self.connector.open()
         self.log = None

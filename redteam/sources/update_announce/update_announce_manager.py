@@ -3,16 +3,22 @@ import calendar
 from datetime import datetime
 from datetime import timedelta
 from datetime import date
-from redteam.core import Resource
-from redteam.core import MBoxResouceConnector
-from redteam.core import HTTPResourceReadError
+from redteamcore import Resource
+from redteamcore import MBoxResouceConnector
+from redteamcore import HTTPResourceReadError
 from redteam.sources.update_announce import UpdateAnnounceMessage
 from redteam.sources.update_announce import UpdateAnnounceThread
+from redteam.core import MongoEngineResourceConnector
 
 class UpdateAnnounceManager(Resource):
     def __init__(self, **kwargs):
         if kwargs and kwargs['location']:
-            super(UpdateAnnounceManager, self).__init__(kwargs['location'])
+            logger = None
+            if 'logger' in kwargs.keys():
+                logger = kwargs['logger']
+            resource_connector = MongoEngineResourceConnector(kwargs['location'], logger=logger)
+
+            super(UpdateAnnounceManager, self).__init__(kwargs['location'], resource_connector=resource_connector)
             kwargs.pop('location')
             self.connector.open()
         self.log = None

@@ -9,9 +9,9 @@ from redteam.artifacts import CVRF
 from redteam.artifacts import CVE
 
 class RedTeam(object):
-    def __init__(self, loglevel, mongo_host, mongo_port, mongodb, mongo_username=None, mongo_password=None, basehost='http://localhost', no_tls_verify=False):
+    def __init__(self, loglevel, mongo_host, mongo_port, mongodb, mongo_username=None, mongo_password=None, no_tls_verify=False):
         self.tls_verify = not no_tls_verify
-        self.basehost = basehost
+        #self.basehost = basehost
 
         self.mongo_location = 'mongodb://'
         if mongo_username and mongo_password:
@@ -44,17 +44,17 @@ class RedTeam(object):
         self.logger.info("Finished adding message %d messages with %d advisories from %d locations", len(built_messages), len(added_advisories), len(added_locations))
         return added_advisories
 
-    def build_cvrfs(self, advisory_ids_to_build):
-        artifact_manager = ArtifactManager(**self.mongo_connect_args)
+    # def build_cvrfs(self, advisory_ids_to_build):
+    #     artifact_manager = ArtifactManager(**self.mongo_connect_args)
 
-        if not advisory_ids_to_build:
-            self.logger.info("No new advisories to build")
-            return
-        self.logger.info("Re/building %d advisories.", len(advisory_ids_to_build))
-        for aid in advisory_ids_to_build:
-            cvrf = CVRF(advisory_id=aid)
-            cvrf.save()
-        self.logger.info("Finished re/building %d advisories.", len(advisory_ids_to_build))
+    #     if not advisory_ids_to_build:
+    #         self.logger.info("No new advisories to build")
+    #         return
+    #     self.logger.info("Re/building %d advisories.", len(advisory_ids_to_build))
+    #     for aid in advisory_ids_to_build:
+    #         cvrf = CVRF(advisory_id=aid)
+    #         cvrf.save()
+    #     self.logger.info("Finished re/building %d advisories.", len(advisory_ids_to_build))
 
 
     def query_cvrf_index(self, page=1, per_page=1000, before_date=None, after_date=None,
@@ -87,25 +87,34 @@ class RedTeam(object):
                             'resource_url': self.basehost + '/cvrf/' + message.advisory_id + '.' + output_format
                             } for message in messages], indent=4, sort_keys=False)
     
-    def query_cvrf(self, cvrfid, output_format='json', data_dir=None):
+    def query_cvrf(self, cvrfid, output_format='json', basehost='http://localhost'):
         # pylint: disable=W0612
         artifact_manager = ArtifactManager(**self.mongo_connect_args)
         # pylint: disable=E1101
-        cvrf = CVRF(cvrfid, data_dir)
+        cvrf = CVRF(cvrfid)
        
         return json.dumps(dict(cvrf), indent=4, sort_keys=False)
 
 
-    def query_cve(self, cveid, output_format='json'):
+    def query_cve(self, cveid, output_format='json', basehost='http://localhost'):
+        # pylint: disable=W0612
         artifact_manager = ArtifactManager(**self.mongo_connect_args)
         cve = CVE(cveid)
         return json.dumps(dict(cve), indent=4, sort_keys=False)
 
-    def dump(self, datadir, output_format='all'):
+    def dump(self, datadir, output_format='all', basehost='http://localhost'):
         artifact_manager = ArtifactManager(**self.mongo_connect_args)
-        advisories = [uam.advisory_id for uam in UpdateAnnounceMessage.objects.filter()]
-        for advisory_id in advisories:
-            cvrf = CVRF(advisory_id, data_dir=datadir, logger='console')
-            cvrf.save_json()
+        advisory_ids = []
+        # pylint: disable=E1101
+        #uam_count = UpdateAnnounceMessage.objects.count()
+        for uam in UpdateAnnounceMessage.objects.no_cache():
+            print type(uam)
+
+
+        #print uam_count
+        # 
+        # for advisory_id in advisories:
+        #     cvrf = CVRF(advisory_id, data_dir=datadir, logger='console')
+        #     cvrf.save_json()
 
 

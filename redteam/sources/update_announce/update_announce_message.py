@@ -61,7 +61,7 @@ class UpdateAnnounceMessage(Document):
                          PACAKGE_RELEASE_REGEX.search(self.text).group(1)])
 
     @property
-    def rpname(self):
+    def rpmname(self):
         return PACAKGE_NAME_REGEX.search(self.text).group(1)
 
     @property

@@ -4,8 +4,9 @@ from mongoengine import DateTimeField
 from mongoengine import URLField
 from mongoengine import ListField
 from mongoengine import ReferenceField
-from redteam.core import Resource
+from redteamcore import Resource
 from redteam.sources.nvd import CveItem
+
 
 class NvdSource(Resource, Document):
 
@@ -18,6 +19,7 @@ class NvdSource(Resource, Document):
         try:
             tlsverify = data['tlsverify']
             logger = data['logger']
+
             Resource.__init__(self, location=location,
                               tlsverify=tlsverify,
                               logger=logger)

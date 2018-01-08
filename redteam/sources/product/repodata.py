@@ -3,7 +3,7 @@ try:
     from xml.etree import cElementTree as ElementTree
 except ImportError:
     from xml.etree import ElementTree
-from redteam.core import Resource
+from redteamcore import Resource
 from redteam.sources.product import Rpm
 
 class RepoData(Resource):

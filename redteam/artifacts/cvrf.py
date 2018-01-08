@@ -1,30 +1,23 @@
-import os
 from datetime import datetime
+from redteamcore import TransformableDict
 from redteam.sources.update_announce.update_announce_message import UpdateAnnounceMessage
 from redteam.sources.nvd import CveItem
-from redteam.core import SaveableLoadableDict
+
 
 
 SEVERITIES = dict(LOW=1, MEDIUM=2, MODERATE=2, HIGH=3, CRITICAL=4, NONE=0)
 
-class CVRF(SaveableLoadableDict):
+class CVRF(TransformableDict):
 
     def __init__(self, advisory_id, data_dir=None, logger=None):
         self.advisory_id = advisory_id
         self.version_number = 1
         kwargs = dict()
         args = []
-        if data_dir:
-            kwargs['location'] = os.path.join(data_dir, 'cvrf', self.advisory_id) + '.json'
-        if logger:
-            kwargs['logger'] = logger
-
+        
         super(CVRF, self).__init__(*args, **kwargs)
-
-        if self.exists:
-            self['cvrfdoc'] = self.data['cvrfdoc']
-        else:
-            self['cvrfdoc'] = self.cvrfdoc
+        self['cvrfdoc'] = self.cvrfdoc
+        
 
     @property
     #TODO: THis ain't working well

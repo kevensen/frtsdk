@@ -253,7 +253,7 @@ def main():
     if args.which == 'build':
         redteam.build_nvd_cves(alldata=args.all, force=args.force, update=args.update)
         added_advisories = redteam.build_update_announce_messages(alldata=args.all, force=args.force, update=args.update)
-        redteam.build_cvrfs(added_advisories)
+        #redteam.build_cvrfs(added_advisories)
 
     elif args.which == 'cvrf':
         print redteam.query_cvrf_index(page=args.page,
