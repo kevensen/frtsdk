@@ -1,43 +1,51 @@
+import os
 from datetime import datetime
-from redteamcore import TransformableDict
+from redteamcore import Resource
 from redteam.sources.update_announce.update_announce_message import UpdateAnnounceMessage
 from redteam.sources.nvd import CveItem
 
-
-
 SEVERITIES = dict(LOW=1, MEDIUM=2, MODERATE=2, HIGH=3, CRITICAL=4, NONE=0)
 
-class CVRF(TransformableDict):
+class CVRF(Resource):
 
-    def __init__(self, advisory_id, data_dir=None, logger=None):
+    def __init__(self, advisory_id, data_dir=None, output_format='json', logger=None, basehost=None):
         self.advisory_id = advisory_id
+        self.basehost = basehost
+        self.new = True
         self.version_number = 1
-        kwargs = dict()
-        args = []
-        
-        super(CVRF, self).__init__(*args, **kwargs)
-        self['cvrfdoc'] = self.cvrfdoc
-        
 
-    @property
-    #TODO: THis ain't working well
-    def revision(self):
-        try:
-            return self['cvrfdoc']['version'] + 1
-        except KeyError:
-            return self.version_number
+        self.output_format = output_format
+
+        if logger:
+            self.log = logger
+
+        if data_dir:
+            location = os.path.join(data_dir, 'cvrf', advisory_id)
+            location = '.'.join([location, output_format])
+            super(CVRF, self).__init__(location, logger=logger)
+            if self.exists:
+                self.new = False
+                try:
+                    self.version_number = self.data['version']
+                except KeyError:
+                    pass
+
+    def write(self):
+        if self.output_format.startswith('j'):
+            super(CVRF, self).write(self.cvrfdoc)
 
     @property
     def revision_date(self):
+        try:
+            return self.data['revision_date']
+        except (AttributeError, IOError):
+            pass
         return datetime.now().replace(microsecond=0).isoformat()
 
     @property
     def initial_release_date(self):
-        try:
-            return self['cvrfdoc']['initial_release_date']
-        except KeyError:
-            return datetime.now().replace(microsecond=0).isoformat()
-
+        # pylint: disable=E1101
+        UpdateAnnounceMessage.objects.filter(advisory_id=self.advisory_id).first().advisory_release_date
 
     @property
     def document_type(self):
@@ -52,7 +60,6 @@ class CVRF(TransformableDict):
     def cves(self):
         # pylint: disable=E1101
         return list(set([cve for uam in UpdateAnnounceMessage.objects.filter(advisory_id=self.advisory_id) for cve in uam.cves]))
-
 
     @property
     def references(self):
@@ -93,8 +100,8 @@ class CVRF(TransformableDict):
                                  document_publisher=self.document_publisher,
                                  document_tracking=dict(identification=dict(id=self.advisory_id)),
                                  status="Final",
-                                 version=self.revision,
-                                 revision_history=dict(revision=dict(number=self.revision,
+                                 version=1,
+                                 revision_history=dict(revision=dict(number=1,
                                                                      # pylint: disable=E1101
                                                                      date=self.revision_date,
                                                                      description='Current version')),

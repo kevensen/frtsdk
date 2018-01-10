@@ -79,7 +79,7 @@ class CveItem(Document):
     def cwe(self):
         try:
             return self.cve['problemtype']['problemtype_data'][0]['description'][0]['value']
-        except KeyError:
+        except (KeyError, IndexError):
             pass
         return ""
 

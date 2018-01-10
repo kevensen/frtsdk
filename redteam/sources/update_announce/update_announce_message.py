@@ -8,6 +8,7 @@ from mongoengine import ListField
 CVE_REGEX = re.compile(r'CVE-\d{4}-\d{1,}', re.MULTILINE)
 ADVISORY_REGEX = re.compile(r"""(^\s*FEDORA\-.*|^\s*RHSA-.*|^\s*CEBA-.*)
 (\d\d\d\d-\d\d-\d\d\s*\d\d:\d\d|\d\d\d\d-\d\d-\d\d)""", re.MULTILINE)
+ADVISORY_DATE_REGEX = re.compile(r'^([\d]{4}-[\d]{2}-[\d]{2})[\s\d:\.]*$', re.MULTILINE)
 SUMMARY_REGEX = re.compile(r'^Summary\W*(.*)$', re.MULTILINE)
 PRODUCT_REGEX = re.compile(r"\s*Product\s*:\s*(.*)", re.MULTILINE)
 PACAKGE_NAME_REGEX = re.compile(r"^\s*Name\s*:\s*(.*)", re.MULTILINE)
@@ -19,11 +20,15 @@ BUGZILLA_REGEX = re.compile(r"""(\s*\[ \d \] Bug \#(\d+) - (.+)
 
 class UpdateAnnounceMessage(Document):
     message_id = StringField(primary_key=True)
-    text = StringField(required=True)
     message_date = DateTimeField(required=True)
     summary = StringField()
     advisory_id = StringField(required=True)
+    advisory_date = DateTimeField()
     cves = ListField()
+    rpmname = StringField()
+    rpmversion = StringField()
+    rpmrelease = StringField()
+    product = StringField()
     
     meta = {'ordering': ['-message_date']}
 
@@ -35,7 +40,6 @@ class UpdateAnnounceMessage(Document):
             except KeyError:
                 self.message_id = kwargs['messageId']
         try:
-            self.text = kwargs['text']
             if isinstance(kwargs['message_date'], datetime):
                 self.message_date = kwargs['message_date']
             else:
@@ -46,35 +50,57 @@ class UpdateAnnounceMessage(Document):
                     simple_date = simple_date.split('-')[0].strip()
 
                 self.message_date = datetime.strptime(simple_date, '%a, %d %b %Y %H:%M:%S')
+            if 'text' in kwargs.keys():
+                self.advisory_id = ADVISORY_REGEX.search(kwargs['text']).group(1)
+                self.summary = SUMMARY_REGEX.search(kwargs['text']).group(1)
+                self.cves = list(set(CVE_REGEX.findall(kwargs['text'])))
 
 
-            self.advisory_id = ADVISORY_REGEX.search(self.text).group(1)
-            self.summary = SUMMARY_REGEX.search(self.text).group(1)
-            self.cves = list(set(CVE_REGEX.findall(self.text)))
+                self.rpmname = PACAKGE_NAME_REGEX.search(kwargs['text']).group(1)
+                self.rpmversion = PACAKGE_VERSION_REGEX.search(kwargs['text']).group(1)
+                self.rpmrelease = PACAKGE_RELEASE_REGEX.search(kwargs['text']).group(1)
+
+                self.product = PRODUCT_REGEX.search(kwargs['text']).group(1)
+                self.advisory_date = datetime.strptime(ADVISORY_DATE_REGEX.search(kwargs['text']).group(1), '%Y-%m-%d')
+
+            else:
+                if 'advisory_id' in kwargs.keys():
+                    self.advisory_id = kwargs['advisory_id']
+                if 'summary' in kwargs.keys():
+                    self.summary = kwargs['summary']
+                if 'cves' in kwargs.keys():
+                    self.cves = kwargs['cves']
+                if 'rpmname' in kwargs.keys():
+                    self.rpmname = kwargs['rpmname']
+                if 'rpmversion' in kwargs.keys():
+                    self.rpmversion = kwargs['rpmversion'].replace(" ", "").replace("=","")
+                if 'rpmrelease' in kwargs.keys():
+                    self.rpmrelease = kwargs['rpmrelease'].replace(" ", "").replace("=","")
+                if 'product' in kwargs.keys():
+                    self.product = kwargs['product']
+                if 'advisory_date' in kwargs.keys():
+                    self.advisory_date = kwargs['advisory_date']
+
         except KeyError:
             pass
+            
 
     @property
     def rpm(self):
-        return '-'.join([PACAKGE_NAME_REGEX.search(self.text).group(1),
-                         PACAKGE_VERSION_REGEX.search(self.text).group(1),
-                         PACAKGE_RELEASE_REGEX.search(self.text).group(1)])
-
-    @property
-    def rpmname(self):
-        return PACAKGE_NAME_REGEX.search(self.text).group(1)
-
-    @property
-    def product(self):
-        return PRODUCT_REGEX.search(self.text).group(1)
+        try:
+           return '-'.join([self.rpmname, self.rpmversion, self.rpmrelease])
+        except TypeError:
+            pass
+        print self.rpmname
+        return ""
 
     @property
     def product_name(self):
-        return self.product.split(' ')[0]
+        return ' '.join(self.product.split(' ')[:-1])
 
     @property
     def product_version(self):
-        return self.product.split(' ')[1]
+        return self.product.split(' ')[-1]
 
     @property
     def product_family(self):
@@ -86,7 +112,7 @@ class UpdateAnnounceMessage(Document):
 
     @property
     def product_reference(self):
-        return self.product_version + self.product_name
+        return ''.join([self.product_version, self.product_name]).replace(' ','')
 
     @property
     def full_product_name(self):
@@ -118,3 +144,7 @@ class UpdateAnnounceMessage(Document):
         if 'Fedora' in self.product:
             cpestring = "cpe:/o:fedoraproject:fedora:" + self.product_version
         return cpestring
+
+    @property
+    def advisory_release_date(self):
+        return self.advisory_date or self.message_date

@@ -1,29 +1,26 @@
-from redteamcore import TransformableDict
+import os
+from redteamcore import Resource
 from redteam.sources.nvd import CveItem
 from redteam.sources.update_announce import UpdateAnnounceMessage
 
 
-class CVE(TransformableDict):
-    def __init__(self, cveid, data_dir=None, logger=None):
+class CVE(Resource):
+    def __init__(self, cveid, data_dir=None, output_format='json', logger=None, basehost=None):
         self.cveid = cveid
-        kwargs = dict()
-        args = []
+        self.output_format = output_format
 
-        super(CVE, self).__init__(*args, **kwargs)
+        if logger:
+            self.log = logger
 
-        self['threat_severity'] = self.threat_severity
-        self['public_date'] = self.public_date
-        self['bugzilla'] = self.bugzilla
-        self['cvss'] = self.cvss
-        self['cwe'] = self.cwe
-        self['iava'] = self.iava
-        self['details'] = self.details
-        self['acknowledgement'] = self.acknowledgement
-        self['affected_release'] = self.affected_releases
-        self['package_state'] = self.package_state
-        self['references'] = self.references
-        self['document_distribution'] = self.document_distribution
-        self['name'] = self.name
+
+        if data_dir:
+            location = os.path.join(data_dir, 'cve', cveid)
+            location = '.'.join([location, output_format])
+            super(CVE, self).__init__(location, logger=logger)
+
+    def write(self):
+        if self.output_format.startswith('j'):
+            super(CVE, self).write(dict(self))
 
     @property
     def name(self):
@@ -32,7 +29,10 @@ class CVE(TransformableDict):
     @property
     def cve_item(self):
         # pylint: disable=E1101
-        return CveItem.objects.filter(cveid=self.cveid).first()
+        cve_item = CveItem.objects.filter(cveid=self.cveid).first()
+        if cve_item:
+            return cve_item
+        raise CVENotFoundError("CVE %s was not found in NVD Data." % self.cveid)
 
     @property
     def threat_severity(self):
@@ -97,3 +97,23 @@ class CVE(TransformableDict):
     def package_state(self):
         return [dict(product_name=uam.product, fix_state="Affected", package_name=uam.rpmname, cpe=uam.cpe)for uam in self.update_announce_messages]
 
+
+    #TODO: Re-implement dictionary output
+    def __iter__(self):
+        return dict(threat_severity=self.threat_severity,
+                    public_date=self.public_date,
+                    bugzilla=self.bugzilla,
+                    cvss=self.cvss,
+                    cwe=self.cwe,
+                    iava=self.iava,
+                    details=self.details,
+                    acknowledgement=self.acknowledgement,
+                    affected_release=self.affected_releases,
+                    package_state=self.package_state,
+                    references=self.references,
+                    name=self.name,
+                    document_distribution=self.document_distribution).iteritems()
+
+class CVENotFoundError(Exception):
+    def __init__(self, message):
+        super(CVENotFoundError, self).__init__(message)

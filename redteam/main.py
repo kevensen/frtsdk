@@ -7,6 +7,7 @@ from redteam.sources.nvd import NvdManager
 from redteam.artifacts import ArtifactManager
 from redteam.artifacts import CVRF
 from redteam.artifacts import CVE
+from redteam.artifacts import CVENotFoundError
 
 class RedTeam(object):
     def __init__(self, loglevel, mongo_host, mongo_port, mongodb, mongo_username=None, mongo_password=None, no_tls_verify=False):
@@ -93,22 +94,34 @@ class RedTeam(object):
         # pylint: disable=E1101
         cvrf = CVRF(cvrfid)
        
-        return json.dumps(dict(cvrf), indent=4, sort_keys=False)
+        return json.dumps(dict(cvrf.cvrfdoc), indent=4, sort_keys=False)
 
 
     def query_cve(self, cveid, output_format='json', basehost='http://localhost'):
         # pylint: disable=W0612
         artifact_manager = ArtifactManager(**self.mongo_connect_args)
-        cve = CVE(cveid)
-        return json.dumps(dict(cve), indent=4, sort_keys=False)
+        try:
+            cve = CVE(cveid)
+            return json.dumps(dict(cve), indent=4, sort_keys=False)
+        except CVENotFoundError:
+            return '{}'
 
     def dump(self, datadir, output_format='all', basehost='http://localhost'):
+        # pylint: disable=W0612,E1101
         artifact_manager = ArtifactManager(**self.mongo_connect_args)
-        advisory_ids = []
+        advisory_ids = list(set([uam.advisory_id for uam in UpdateAnnounceMessage.objects]))
+        # pylint: disable=E1101
+        for aid in advisory_ids:
+            cvrf = None
+            if output_format in ['a', 'j']:
+                cvrf = CVRF(advisory_id=aid, output_format='json', data_dir=datadir, logger='console')
+            cvrf.write()
+
+
+
+
         # pylint: disable=E1101
         #uam_count = UpdateAnnounceMessage.objects.count()
-        for uam in UpdateAnnounceMessage.objects.no_cache():
-            print type(uam)
 
 
         #print uam_count
