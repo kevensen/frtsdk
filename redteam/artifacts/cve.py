@@ -95,7 +95,7 @@ class CVE(Resource):
 
     @property
     def package_state(self):
-        return [dict(product_name=uam.product, fix_state="Affected", package_name=uam.rpmname, cpe=uam.cpe)for uam in self.update_announce_messages]
+        return [dict(product_name=uam.product, fix_state="Affected", package_name=uam.rpmname, cpe=uam.cpe) for uam in self.update_announce_messages]
 
 
     #TODO: Re-implement dictionary output
