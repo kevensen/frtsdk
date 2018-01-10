@@ -6,7 +6,6 @@ import sys
 sys.path.append("../")
 # pylint: disable=C0413,W0406
 from redteam import RedTeam
-from redteam import ALLOWED_LOGGING_LEVELS
 
 
 def valid_iso_date(search_date):
@@ -61,186 +60,69 @@ def main():
                         default='info',
                         type=str)
 
-    build_parser = subparsers.add_parser('build')
-    build_parser.set_defaults(which='build')
+    source_parser = subparsers.add_parser('source')
+    source_parser.set_defaults(which='source')
 
-    build_parser.add_argument('--all',
-                              required=False,
-                              action='store_true',
-                              help='Rebuild data from May 2006.  If omitted, only recent (last 30 days) is rebuilt.')
-    build_parser.add_argument('--force',
-                              required=False,
-                              action='store_true',
-                              help='Only used with --all to drop existing data.  If omitted, only build missing data.')
+    source_subparsers = source_parser.add_subparsers()
 
-    build_parser.add_argument('--update',
-                              required=False,
-                              action='store_true',
-                              help='In addition to downloading data, update existing data if new data exists.')
-    
-    cve_parser = subparsers.add_parser('cve')
-    cve_parser.set_defaults(which='cve')
+    source_load_subparser = source_subparsers.add_parser('load')
+    source_load_subparser.set_defaults(subwhich='load')
+    source_load_subparser.add_argument('--clean', action='store_true', required=False, help="Clear all sources and status from the database before loading sources from the config file.")
 
-    cve_format_group = cve_parser.add_mutually_exclusive_group()
-    cve_format_group.add_argument('--json', action='store_const',
-                                  dest='format', const='j', default='j')
-    cve_format_group.add_argument('--xml', action='store_const',
-                                  dest='format', const='x')
-    cve_format_group.add_argument('--html', action='store_const',
-                                  dest='format', const='h')
+    sources_list_subparser = source_subparsers.add_parser('list')
+    sources_list_subparser.set_defaults(subwhich='list')
 
-    cve_parser.add_argument('--before',
-                            type=valid_iso_date,
-                            help="CVEs before the query date. [ISO 8601 is the expected format]",
-                            required=False)
-    cve_parser.add_argument('--after',
-                            type=valid_iso_date,
-                            help="CVEs after the query date. [ISO 8601 is the expected format]",
-                            required=False)
-    cve_parser.add_argument('--bug',
-                            type=str,
-                            help="CVEs for Bugzilla Ids",
-                            required=False)
-    cve_parser.add_argument('--advisory',
-                            type=str,
-                            help="CVEs for advisory",
-                            required=False)
-    cve_parser.add_argument('--severity',
-                            type=str,
-                            help="CVEs for severity",
-                            required=False)
-    cve_parser.add_argument('--package',
-                            type=str,
-                            help="CVEs which affect the package",
-                            required=False)
-    cve_parser.add_argument('--product',
-                            type=str,
-                            help="CVEs which affect the product. The parameter supports Perl compatible regular expressions.",
-                            required=False)
-    cve_parser.add_argument('--cwe',
-                            type=str,
-                            help="CVEs with CWE",
-                            required=False)
-    cve_parser.add_argument('--cvss_score',
-                            type=float,
-                            help="CVEs with CVSS score greater than or equal to this value",
-                            required=False)
-    cve_parser.add_argument('--cvss3_score',
-                            type=float,
-                            help="CVEs with CVSSv3 score greater than or equal to this value",
-                            required=False)
-    cve_parser.add_argument('--per_page',
-                            type=int,
-                            help="Number of CVEs to return per page",
-                            default=1000,
-                            required=False)
-    cve_parser.add_argument('--page',
-                            type=int,
-                            help="CVEs for page number",
-                            default=1,
-                            required=False)
+    sources_reset_subparser = source_subparsers.add_parser('reset')
+    sources_reset_subparser.set_defaults(subwhich='reset')
 
+    sources_reset_subparser.add_argument('--id', type=int, dest='source_id', required=False)
+
+    source_group = sources_list_subparser.add_mutually_exclusive_group()
+    source_group.add_argument('--list-types', action='store_true', required=False)
+    source_group.add_argument('--status', type=str, required=False, default='all')
+
+    source_sync_subparser = source_subparsers.add_parser('sync')
+    source_sync_subparser.set_defaults(subwhich='sync')
+    source_sync_subparser.add_argument('--never-synced',
+                                       required=False,
+                                       action='store_true')
+    source_sync_subparser.add_argument('--failed',
+                                       required=False,
+                                       action='store_true')
+    source_sync_subparser.add_argument('--success',
+                                       required=False,
+                                       action='store_true')
+    source_sync_subparser.add_argument('--id', type=int, dest='source_id', required=False)
+
+    source_sync_subparser.add_argument('--skip-failures',
+                                       required=False,
+                                       action='store_true',
+                                       help='If reading from a source fails, move on to the next source.  Default behavior is to exit.')
 
 
     cvrf_parser = subparsers.add_parser('cvrf')
     cvrf_parser.set_defaults(which='cvrf')
 
-    cvrf_format_group = cvrf_parser.add_mutually_exclusive_group()
-    cvrf_format_group.add_argument('--json', action='store_const',
-                                   dest='format', const='j', default='j')
-    cvrf_format_group.add_argument('--xml', action='store_const',
-                                   dest='format', const='x')
-    cvrf_format_group.add_argument('--html', action='store_const',
-                                   dest='format', const='h')
+    cvrf_subparsers = cvrf_parser.add_subparsers()
+    cvrf_rfresh_subparser = cvrf_subparsers.add_parser('refresh')
+    cvrf_rfresh_subparser.set_defaults(subwhich='refresh')
+    cvrf_rfresh_subparser.add_argument('--clean', action='store_true', required=False)
 
-    cvrf_parser.add_argument('--before',
-                             type=valid_iso_date,
-                             help="Index of CVRF documents before the query date. [ISO 8601 is the expected format]",
-                             required=False)
-    cvrf_parser.add_argument('--after',
-                             type=valid_iso_date,
-                             help="Index of CVRF documents after the query date. [ISO 8601 is the expected format]",
-                             required=False)
-    cvrf_parser.add_argument('--bug',
-                             type=str,
-                             help="Index of CVRF documents for Bugzilla Ids",
-                             required=False)
-    cvrf_parser.add_argument('--cve',
-                             type=str,
-                             help="Index of CVRF documents for CVEs",
-                             required=False)
-    cvrf_parser.add_argument('--severity',
-                             type=valid_severity,
-                             help="Index of CVRF documents for severity",
-                             required=False)
-    cvrf_parser.add_argument('--package',
-                               type=str,
-                               help="Index of CVRF documents which contain package",
-                               required=False)
-    cvrf_parser.add_argument('--per_page',
-                             type=int,
-                             help="Number of CVEs to return per page",
-                             default=1000,
-                             required=False)
-    cvrf_parser.add_argument('--page',
-                             type=int,
-                             help="CVEs for page number",
-                             default=1,
-                             required=False)
+    search_parser = subparsers.add_parser('search')
+    search_parser.set_defaults(which='search')
+    search_subparaser = search_parser.add_subparsers()
 
-    cvrfid_parser = subparsers.add_parser('cvrfid')
-    cvrfid_parser.set_defaults(which='cvrfid')
+    search_rpm_subparser = search_subparaser.add_parser('rpm')
+    search_rpm_subparser.set_defaults(subwhich='rpm')
 
-    cvrfid_parser.add_argument('cvrf',
-                               type=str)
-
-    cvrfid_format_group = cvrfid_parser.add_mutually_exclusive_group()
-    cvrfid_format_group.add_argument('--json', action='store_const',
-                                   dest='format', const='j', default='j')
-    cvrfid_format_group.add_argument('--xml', action='store_const',
-                                   dest='format', const='x')
-    cvrfid_format_group.add_argument('--html', action='store_const',
-                                   dest='format', const='h')
-
-
-    cveid_parser = subparsers.add_parser('cveid')
-    cveid_parser.set_defaults(which='cveid')
-
-    cveid_parser.add_argument('cve',
-                               type=str)
-
-    cveid_format_group = cveid_parser.add_mutually_exclusive_group()
-    cveid_format_group.add_argument('--json', action='store_const',
-                                   dest='format', const='j', default='j')
-    cveid_format_group.add_argument('--xml', action='store_const',
-                                   dest='format', const='x')
-    cveid_format_group.add_argument('--html', action='store_const',
-                                   dest='format', const='h')
-
-
-    dump_parser = subparsers.add_parser('dump')
-    dump_parser.set_defaults(which='dump')
-
-    dump_format_group = dump_parser.add_mutually_exclusive_group()
-    dump_format_group.add_argument('--all', action='store_const',
-                                   dest='format', const='a', default='a')
-    dump_format_group.add_argument('--json', action='store_const',
-                                   dest='format', const='j')
-    dump_format_group.add_argument('--xml', action='store_const',
-                                   dest='format', const='x')
-    dump_format_group.add_argument('--html', action='store_const',
-                                   dest='format', const='h')
-
-    dump_parser.add_argument('--data-dir',
-                             required=True,
-                             type=str)
-
+    search_rpm_subparser.add_argument('--name', type=str, required=True)
+    search_rpm_subparser.add_argument('--version', type=str, required=False)
+    search_rpm_subparser.add_argument('--release', type=str, required=False)
 
     args = parser.parse_args()
 
-    if args.loglevel.upper() not in ALLOWED_LOGGING_LEVELS:
-        print "Logging level must be one of: " + str(ALLOWED_LOGGING_LEVELS)
-        sys.exit(1)
+
+
 
     redteam = RedTeam(no_tls_verify=args.notlsverify,
                 loglevel=args.loglevel,
@@ -250,29 +132,53 @@ def main():
                 mongo_password=args.mongopassword,
                 mongodb=args.mongodb)
 
-    if args.which == 'build':
-        redteam.build_nvd_cves(alldata=args.all, force=args.force, update=args.update)
-        added_advisories = redteam.build_update_announce_messages(alldata=args.all, force=args.force, update=args.update)
-        #redteam.build_cvrfs(added_advisories)
+    if args.which == 'source' and args.subwhich == 'load':
+        redteam.load_sources(args.clean)
+    elif args.which == 'source' and args.subwhich == 'list' and args.list_types:
+        print redteam.list_types()
+    elif args.which == 'source' and args.subwhich == 'list' and args.status:
+        print redteam.list_sources(args.status)
+    elif args.which == 'source' and args.subwhich == 'reset':
+        redteam.reset_sources(args.source_id)
 
-    elif args.which == 'cvrf':
-        print redteam.query_cvrf_index(page=args.page,
-                                       per_page=args.per_page,
-                                       before_date=args.before,
-                                       after_date=args.after,
-                                       bug=args.bug,
-                                       cve=args.cve,
-                                       severity=args.severity,
-                                       package=args.package)
+    elif args.which == 'source' and args.subwhich == 'sync':
+        redteam.sync(never_synced=args.never_synced,
+                     failed=args.failed,
+                     success=args.success,
+                     source_id=args.source_id,
+                     skip_failures=args.skip_failures)
 
-    elif args.which == 'cvrfid':
-        print redteam.query_cvrf(cvrfid=args.cvrf, output_format=args.format)
+    elif args.which == 'cvrf' and args.subwhich == 'refresh':
+        redteam.cvrf_refresh(args.clean)
 
-    elif args.which == 'cveid':
-        print redteam.query_cve(cveid=args.cve, output_format=args.format)
+    elif args.which == 'search' and args.subwhich == 'rpm':
+        cves = redteam.cves_for_rpm(args.name, args.version, args.release)
+        for cve in cves:
+            print cve
 
-    elif args.which == 'dump':
-        redteam.dump(args.data_dir, args.format)
+    # if args.which == 'build':
+    #     redteam.build_nvd_cves(alldata=args.all, force=args.force, update=args.update)
+    #     added_advisories = redteam.build_update_announce_messages(alldata=args.all, force=args.force, update=args.update)
+    #     #redteam.build_cvrfs(added_advisories)
+
+    # elif args.which == 'cvrf':
+    #     print redteam.query_cvrf_index(page=args.page,
+    #                                    per_page=args.per_page,
+    #                                    before_date=args.before,
+    #                                    after_date=args.after,
+    #                                    bug=args.bug,
+    #                                    cve=args.cve,
+    #                                    severity=args.severity,
+    #                                    package=args.package)
+
+    # elif args.which == 'cvrfid':
+    #     print redteam.query_cvrf(cvrfid=args.cvrf, output_format=args.format)
+
+    # elif args.which == 'cveid':
+    #     print redteam.query_cve(cveid=args.cve, output_format=args.format)
+
+    # elif args.which == 'dump':
+    #     redteam.dump(args.data_dir, args.format)
 
 
 if __name__ == "__main__":

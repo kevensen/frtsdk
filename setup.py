@@ -24,10 +24,19 @@ class CleanPycCommand(Command):
         for filename in filenames:
             os.remove(filename)
 
+FRT_CONF_ENV = 'FRTCONFPATH'
+if os.getenv(FRT_CONF_ENV):
+    path = os.getenv(FRT_CONF_ENV)
+elif hasattr(sys, 'real_prefix'):
+    path = os.path.join(sys.prefix, '.frt')
+else:
+    path = os.path.join(os.path.expanduser("~"), '.frt')
 
 setup(name='redteam',
       packages=['redteam', 'redteam.core', 'redteam.artifacts', 'redteam.sources.nvd', 'redteam.sources.update_announce'],
       install_requires=['argparse', 'requests', 'mongoengine', 'cpe', 'redteamcore'],
+      package_data={'redteam': ['config/redteam.conf']},
+      data_files=[(path, ['redteam/config/redteam.conf'])],
       version='0.4.0',
       description='Red Team SDK for Python.',
       author='Kenneth Evensen',
